@@ -22,7 +22,7 @@ from rich import progress
 from rich.box import ROUNDED, Box
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import track
+from rich.progress import Progress, track
 from rich.table import Table
 
 if TYPE_CHECKING:
@@ -36,6 +36,9 @@ DISABLE_LOGGING = os.getenv("DISABLE_LOGGING", "False") == "True"
 LOG_DEBUG = os.getenv("LOG_DEBUG", "False") == "True"
 LOG_WARNING = os.getenv("LOG_WARNING", "True") == "True"
 JSON_FORMATTER = os.getenv("JSON_FORMATTER", "False") == "True"
+RICH_OMIT_REPEATED_TIMES = (
+    os.getenv("RICH_OMIT_REPEATED_TIMES", "False") == "True"
+)
 
 DEFAULT_VERBOSITY = {
     "info": not DISABLE_LOGGING,
@@ -141,7 +144,7 @@ class LoggingRich:
 
     def __post_init__(self) -> None:
         """Disable the omission of repeated times in console's log render."""
-        self.console._log_render.omit_repeated_times = False
+        self.console._log_render.omit_repeated_times = RICH_OMIT_REPEATED_TIMES
         # default is True, i.e. omit timestamp if it's the same as last log line
         # https://github.com/Textualize/rich/issues/459
 
@@ -534,6 +537,7 @@ class LoggingRich:
         /,
         *,
         stack_offset: int | None = None,
+        progress: Progress | None = None,
         force: bool = False,
         **kwargs: Any,
     ) -> None:
@@ -551,7 +555,17 @@ class LoggingRich:
                 msg, level="log", stack_offset=stack_offset, **kwargs
             )
             return
-        self.console.log(self.get_modes()["log"].format(msg), **kwargs)
+        _msg = self.get_modes()["log"].format(msg)
+        if progress is not None:
+            kwargs["_stack_offset"] = (
+                self.stack_offset if stack_offset is None else stack_offset + 1
+            )
+            progress.console._log_render.omit_repeated_times = (
+                RICH_OMIT_REPEATED_TIMES
+            )
+            progress.console.log(_msg, **kwargs)
+        else:
+            self.console.log(_msg, **kwargs)
 
     def log_unittest(
         self,
