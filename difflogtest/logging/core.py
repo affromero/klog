@@ -24,6 +24,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, track
 from rich.table import Table
+from rich.text import Text
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
@@ -94,6 +95,17 @@ def override_from_dotenv(
         return wrapper
 
     return decorator
+
+
+class IterationsPerSecondColumn(progress.ProgressColumn):
+    """Iterations per second column."""
+
+    def render(self, task: progress.Task) -> Text:
+        """Render the iterations per second column."""
+        speed = task.finished_speed or task.speed
+        if speed is None:
+            return Text("? it/s", style="progress.data.speed")
+        return Text(f"{speed:.2f} it/s", style="progress.data.speed")
 
 
 class LoggingTable:
@@ -216,8 +228,10 @@ class LoggingRich:
             "[progress.description]{task.description}",
             progress.BarColumn(),
             "[progress.percentage]{task.percentage:>3.0f}%",
+            progress.MofNCompleteColumn(),
             progress.TimeRemainingColumn(),
             progress.TimeElapsedColumn(),
+            IterationsPerSecondColumn(),
             refresh_per_second=1,  # bit slower updates
         )
 
