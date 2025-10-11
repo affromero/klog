@@ -232,6 +232,7 @@ class LoggingRich:
             progress.TimeRemainingColumn(),
             progress.TimeElapsedColumn(),
             IterationsPerSecondColumn(),
+            console=self.console,
             refresh_per_second=1,  # bit slower updates
         )
 
