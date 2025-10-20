@@ -542,6 +542,7 @@ class LoggingRich:
         #     **kwargs,
         # )
         kwargs.pop("style", None)  # remove style from kwargs
+        kwargs.pop("justify", None)  # remove justify from kwargs
         self.console.print_json(
             json.dumps(data), indent=indent, sort_keys=sort_keys, **kwargs
         )
