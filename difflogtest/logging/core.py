@@ -541,10 +541,8 @@ class LoggingRich:
         #     RichJSON(json.dumps(data), indent=4, sort_keys=True),
         #     **kwargs,
         # )
-        kwargs.pop("style", None)  # remove style from kwargs
-        kwargs.pop("justify", None)  # remove justify from kwargs
         self.console.print_json(
-            json.dumps(data), indent=indent, sort_keys=sort_keys, **kwargs
+            json.dumps(data), indent=indent, sort_keys=sort_keys
         )
 
     def log(
