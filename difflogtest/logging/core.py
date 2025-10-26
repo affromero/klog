@@ -11,7 +11,7 @@ import tempfile
 from dataclasses import field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TextIO
 
 import dotenv
 import json5
@@ -53,6 +53,47 @@ DEFAULT_VERBOSITY = {
     "save_image": not DISABLE_LOGGING,
     "make_image_grid": not DISABLE_LOGGING,
 }
+
+
+class StdoutDuplicator:
+    """Duplicates stdout output to a file, stripping ANSI codes."""
+
+    def __init__(self, original_stdout: TextIO, file_path: str | Path) -> None:
+        """Initialize StdoutDuplicator.
+
+        Args:
+            original_stdout: The original stdout
+            file_path: Path to the log file
+
+        """
+        self.original_stdout = original_stdout
+        self.file_handle: TextIO = Path(file_path).open("w", encoding="utf-8")
+
+    def write(self, data: str) -> int:
+        """Write to both stdout and file (stripping colors from file)."""
+        # Write to original stdout
+        result = self.original_stdout.write(data)
+
+        # Write to file, stripping ANSI codes
+        ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+        clean_data = ansi_escape.sub("", data)
+        self.file_handle.write(clean_data)
+        self.file_handle.flush()
+
+        return result
+
+    def flush(self) -> None:
+        """Flush both stdout and file."""
+        self.original_stdout.flush()
+        self.file_handle.flush()
+
+    def close(self) -> None:
+        """Close file handle."""
+        self.file_handle.close()
+
+    def __getattr__(self, name: str) -> Any:
+        """Delegate other attributes to original stdout."""
+        return getattr(self.original_stdout, name)
 
 
 def override_from_dotenv(
@@ -153,6 +194,9 @@ class LoggingRich:
 
     id: str = ""
     """ ID for the logger. """
+
+    stdout_duplicator: StdoutDuplicator | None = None
+    """ Stdout duplicator for file output when enabled. """
 
     def __post_init__(self) -> None:
         """Disable the omission of repeated times in console's log render."""
@@ -643,6 +687,46 @@ class LoggingRich:
         """Create a temporary file with a .log extension and initialize a console object with it."""
         temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".log")
         self.console = Console(file=temp_file, **kwargs)
+
+    def enable_dual_output(self, file_path: str | Path, **kwargs: Any) -> None:
+        """Enable logging to both console and file simultaneously.
+
+        Args:
+            file_path: Path to the log file
+            **kwargs: Additional arguments passed to Console constructor
+
+        """
+        # Close any existing stdout duplicator
+        if self.stdout_duplicator:
+            self.stdout_duplicator.close()
+            # Restore original stdout
+            sys.stdout = self.stdout_duplicator.original_stdout
+
+        # Create stdout duplicator
+        self.stdout_duplicator = StdoutDuplicator(sys.stdout, file_path)
+
+        # Replace sys.stdout with the duplicator
+        sys.stdout = self.stdout_duplicator
+
+        # Recreate console to use the new stdout, forcing terminal mode for colors
+        console_kwargs = kwargs.copy()
+        console_kwargs["force_terminal"] = True
+        self.console = Console(**console_kwargs)
+        self.console._log_render.omit_repeated_times = RICH_OMIT_REPEATED_TIMES
+
+    def disable_dual_output(self) -> None:
+        """Disable logging to both console and file simultaneously."""
+        if self.stdout_duplicator:
+            self.stdout_duplicator.close()
+            # Restore original stdout
+            sys.stdout = self.stdout_duplicator.original_stdout
+            self.stdout_duplicator = None
+
+            # Recreate console with restored stdout
+            self.console = Console()
+            self.console._log_render.omit_repeated_times = (
+                RICH_OMIT_REPEATED_TIMES
+            )
 
     def get_last_line(self, name: str, msg: str) -> str:
         """Read and format the last line from a file with colors and styles based on its content."""
