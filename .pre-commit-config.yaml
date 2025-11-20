@@ -195,7 +195,7 @@ repos:
     #       - id: poetry-types
 
     - repo: https://github.com/pre-commit/mirrors-mypy
-      rev: v1.17.0
+      rev: v1.18.2
       hooks:
           - id: mypy
             name: mypy
@@ -206,7 +206,7 @@ repos:
             require_serial: true
             # args: [--strict, --ignore-missing-imports]
             args: [--ignore-missing-imports, --scripts-are-modules, --install-types, --non-interactive, --warn-unused-ignores, --show-error-codes, --check-untyped-defs,
-                --disallow-incomplete-defs, --explicit-package-bases]
+                --disallow-incomplete-defs, --explicit-package-bases, --warn-redundant-casts, --strict-equality, --strict-equality-for-none, --follow-untyped-imports]
             additional_dependencies:
                 - pydantic
                 - types-requests

@@ -7,9 +7,9 @@ import sys
 from collections.abc import Callable
 from typing import Any, Protocol, TypeVar, cast, runtime_checkable
 
-import jaxtyping
 from beartype import beartype
 from dotenv import dotenv_values
+from jaxtyping import jaxtyped
 from sha256sum import sha256sum as _sha256sum
 
 from difflogtest.utils.mode import is_unittest_mode
@@ -206,26 +206,6 @@ def lru_cache(
     return cast("Callable[[_T], _T]", decorator)
 
 
-def jaxtyped(typechecker: Callable[[_T], _T] = beartype) -> Callable[[_T], _T]:
-    """Decorate a function with jaxtyping, unless in unit test mode.
-
-    This decorator wraps a function with jaxtyping, providing
-        type checking for the function's arguments and return value.
-
-    """
-
-    def decorator(func: Callable[[_T], _T]) -> Callable[[_T], _T]:
-        """Apply jaxtyping to the input function or return the function.
-
-        This decorator function applies jaxtyping to the given function
-            if the code is not running in unittest mode. If it is in
-            unittest mode, the function is returned as is.
-        """
-        return jaxtyping.jaxtyped(typechecker=typechecker)(func)
-
-    return cast(Callable[[_T], _T], decorator)
-
-
 def get_cache_dir() -> str:
     """Locate a platform-appropriate cache directory for flit to use.
 
@@ -265,7 +245,7 @@ def get_cache_dir() -> str:
 
     # Windows
     else:
-        cache_dir = os.environ.get("LOCALAPPDATA", None) or path_expanduser(  # type: ignore[arg-type]
+        cache_dir = os.environ.get("LOCALAPPDATA", "") or path_expanduser(
             "~\\AppData\\Local",
         )
 

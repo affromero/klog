@@ -261,6 +261,14 @@ def path_is_s3(path: str | Path) -> bool:
     return str(path).startswith("s3://")
 
 
+def path_s3_bucket_name(path: str | Path) -> str:
+    """Get the S3 bucket name from a path: s3://bucket/path/to/file."""
+    if not path_is_s3(path):
+        msg = f"Path {path} is not an S3 path."
+        raise ValueError(msg)
+    return str(path).split("://")[1].split("/")[0]
+
+
 def path_dir_empty(path: str | Path) -> bool:
     """Check if a directory is empty.
 

@@ -12,7 +12,6 @@ from .logging import (
 from .logging.cache_tools import (
     disable_lru_cache,
     get_cache_dir,
-    jaxtyped,
     lru_cache,
     sha256sum,
 )

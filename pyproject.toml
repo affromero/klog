@@ -31,10 +31,21 @@ requires-python = ">=3.10"
 scripts = {"run-unittests" = "difflogtest.cli:entrypoint"}
 version = "0.0.1"
 
-[tool.pydantic-mypy]
-init_forbid_extra = true
-init_typed = true
-warn_required_dynamic_aliases = true
+[tool.mypy]
+check_untyped_defs = true
+disallow_any_generics = true
+# for strict mypy: (this is the tricky one :-))
+disallow_untyped_defs = true
+enable_error_code = ["ignore-without-code"]
+explicit_package_bases = true
+follow_imports = "silent"
+no_implicit_reexport = true
+plugins = [
+  "pydantic.mypy"
+]
+show_error_codes = true
+warn_redundant_casts = true
+warn_unused_ignores = true
 
 [tool.ruff]
 # Exclude a variety of commonly ignored directories.
