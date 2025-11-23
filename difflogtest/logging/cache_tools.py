@@ -28,6 +28,30 @@ class _CachedFunction(Protocol):
 
     _original_qualname: str
 
+    # Support both sync and async calls
+    def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
+
+
+class CacheInfo:
+    """Unified cache info class for both sync and async caches."""
+
+    def __init__(
+        self,
+        hits: int = 0,
+        misses: int = 0,
+        maxsize: int | None = None,
+        currsize: int = 0,
+    ) -> None:
+        """Initialize the cache info."""
+        self.hits = hits
+        self.misses = misses
+        self.maxsize = maxsize
+        self.currsize = currsize
+
+    def __repr__(self) -> str:
+        """Represent the cache info."""
+        return f"CacheInfo(hits={self.hits}, misses={self.misses}, maxsize={self.maxsize}, currsize={self.currsize})"
+
 
 _cached_functions: list[_CachedFunction] = []
 
@@ -36,18 +60,26 @@ def _get_cached_function_info(
     func: _CachedFunction | Callable[[_T], _T],
 ) -> str:
     """Get function info."""
-    info = f" || {func.cache_info()}" if hasattr(func, "cache_info") else ""
+    cache_info = func.cache_info() if hasattr(func, "cache_info") else None
+    info = f" || {cache_info}" if cache_info else ""
 
     def _get_wrapped(
         func: _CachedFunction | Callable[[_T], _T],
     ) -> Callable[[_T], _T]:
+        """Get the wrapped function."""
         if hasattr(func, "__wrapped__"):
             return _get_wrapped(func.__wrapped__)
-        return func  # type: ignore[return-value]
+        return func
 
     wrapped_func = _get_wrapped(func)
 
-    return f"{wrapped_func.__qualname__} (at {inspect.getfile(wrapped_func)}:{inspect.getsourcelines(wrapped_func)[1]}){info}"
+    try:
+        file_info = f" (at {inspect.getfile(wrapped_func)}:{inspect.getsourcelines(wrapped_func)[1]})"
+    except (OSError, TypeError):
+        # Handle cases where source code can't be retrieved (e.g., decorated functions)
+        file_info = f" (at {getattr(wrapped_func, '__module__', 'unknown')}.{wrapped_func.__qualname__})"
+
+    return f"{wrapped_func.__qualname__}{file_info}{info}"
 
 
 def disable_lru_cache() -> bool:
@@ -133,33 +165,104 @@ def lru_cache(
                 used in unittest mode to avoid cached results.
 
         """
+        # Check if function is async
+        is_async = inspect.iscoroutinefunction(func)
+
         # Use cache when not in unit test mode
         if not disable_lru_cache():
-            # Apply functools lru_cache
-            cached_func = functools.lru_cache(maxsize=maxsize, typed=False)(
-                func
-            )
-            cached_func._original_qualname = func.__qualname__  # type: ignore[attr-defined]
-            _cached_functions.append(cast(_CachedFunction, cached_func))
+            if not is_async:
+                # For sync functions, use functools lru_cache
+                cached_func = functools.lru_cache(
+                    maxsize=maxsize, typed=False
+                )(func)
+                cached_func._original_qualname = func.__qualname__  # type: ignore[attr-defined]
+                _cached_functions.append(cast(_CachedFunction, cached_func))
 
-            # Create a wrapper that calls show_all_cache_info() on execution
-            @functools.wraps(cached_func)
-            def cached_wrapper(*args: Any, **kwargs: Any) -> Any:
-                """Wrap that shows cache info on execution and preserves cache functionality."""
-                output = cached_func(*args, **kwargs)
-                info = cached_func.cache_info()
+                # Create a wrapper that calls show_all_cache_info() on execution
+                @functools.wraps(cached_func)
+                def cached_wrapper(*args: Any, **kwargs: Any) -> Any:
+                    """Wrap that shows cache info on execution and preserves cache functionality."""
+                    output = cached_func(*args, **kwargs)
+                    info = cached_func.cache_info()
+                    if print_cache_info:
+                        show_all_cache_info(cached_func)
+                    if max_misses != -1 and info.misses > max_misses:
+                        msg = f"Function {func.__qualname__} has {info.misses} cache misses. This is too many. This is probably a bug. If not, update the max_misses parameter."
+                        raise ValueError(msg)
+                    return output
+
+                # Preserve the cache_info method and other attributes
+                cached_wrapper.cache_info = cached_func.cache_info  # type: ignore[attr-defined]
+                cached_wrapper._original_qualname = (  # type: ignore[attr-defined]
+                    cached_func._original_qualname  # type: ignore[attr-defined]
+                )
+
+                return cached_wrapper
+            # For async functions, implement manual caching with unified CacheInfo
+            cache: dict[tuple[Any, ...], Any] = {}
+            cache_order: list[tuple[Any, ...]] = []
+            hits = 0
+            misses = 0
+
+            @functools.wraps(func)
+            async def async_cached_wrapper(*args: Any, **kwargs: Any) -> Any:
+                """Async wrapper that caches results properly."""
+                nonlocal hits, misses
+
+                # Create cache key
+                key = (args, tuple(sorted(kwargs.items())))
+
+                # Check if result is cached
+                if key in cache:
+                    hits += 1
+                    if print_cache_info:
+                        logger.debug(
+                            f"Cache hit for async {func.__qualname__}"
+                        )
+                    return cache[key]
+
+                # Compute result
+                misses += 1
+                result = await func(*args, **kwargs)  # type: ignore[misc]
+
+                # Cache the result with LRU eviction
+                if len(cache) >= (maxsize or 128):
+                    # Remove oldest entry
+                    oldest_key = cache_order.pop(0)
+                    del cache[oldest_key]
+
+                cache[key] = result
+                cache_order.append(key)
+
                 if print_cache_info:
-                    show_all_cache_info(cached_func)
-                if max_misses != -1 and info.misses > max_misses:
-                    msg = f"Function {func.__qualname__} has {info.misses} cache misses. This is too many. This is probably a bug. If not, update the max_misses parameter."
+                    logger.debug(
+                        f"Cached result for async {func.__qualname__} (cache size: {len(cache)})"
+                    )
+
+                # Check max misses
+                if max_misses != -1 and misses > max_misses:
+                    msg = f"Function {func.__qualname__} has {misses} cache misses. This is too many. This is probably a bug. If not, update the max_misses parameter."
                     raise ValueError(msg)
-                return output
 
-            # Preserve the cache_info method and other attributes
-            cached_wrapper.cache_info = cached_func.cache_info  # type: ignore[attr-defined]
-            cached_wrapper._original_qualname = cached_func._original_qualname  # type: ignore[attr-defined]
+                return result
 
-            return cached_wrapper
+            # Add a unified cache_info method
+            def cache_info() -> CacheInfo:
+                """Get the cache info."""
+                return CacheInfo(
+                    hits=hits,
+                    misses=misses,
+                    maxsize=maxsize,
+                    currsize=len(cache),
+                )
+
+            async_cached_wrapper.cache_info = cache_info  # type: ignore[attr-defined]
+            async_cached_wrapper._original_qualname = func.__qualname__  # type: ignore[attr-defined]
+            _cached_functions.append(
+                cast(_CachedFunction, async_cached_wrapper)
+            )
+
+            return async_cached_wrapper  # type: ignore[return-value]
 
         # No-operation decorator
         @functools.wraps(func)
