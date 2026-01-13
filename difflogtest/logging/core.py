@@ -529,9 +529,10 @@ class LoggingRich:
 
     def preprocess_msg(self, msg: str) -> str:
         """Preprocess a given message by performing several transformations."""
+        return msg
         # replace $HOME with ~ for interuser compatibility
-        msg = msg.replace(Path.cwd().as_posix(), ".")
-        return msg.replace(os.getenv("HOME", "~"), "~")
+        # msg = msg.replace(Path.cwd().as_posix(), ".")
+        # return msg.replace(os.getenv("HOME", "~"), "~")
 
     def print_once(self, msg: Any, **kwargs: Any) -> None:
         """Print a preprocessed message to the console once."""

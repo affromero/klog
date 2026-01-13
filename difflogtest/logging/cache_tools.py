@@ -5,6 +5,7 @@ import inspect
 import os
 import sys
 from collections.abc import Callable
+from contextvars import ContextVar, Token
 from typing import Any, Protocol, TypeVar, cast, runtime_checkable
 
 from beartype import beartype
@@ -20,6 +21,11 @@ from .utils import get_logger
 _T = TypeVar("_T")
 
 logger = get_logger()
+
+# Runtime override for cache disabled state (None means use dotenv)
+_lru_cache_disabled_override: ContextVar[bool | None] = ContextVar(
+    "_lru_cache_disabled_override", default=None
+)
 
 
 @runtime_checkable
@@ -82,9 +88,62 @@ def _get_cached_function_info(
     return f"{wrapped_func.__qualname__}{file_info}{info}"
 
 
-def disable_lru_cache() -> bool:
-    """Disable LRU cache."""
+def is_lru_cache_disabled() -> bool:
+    """Check if LRU cache is disabled.
+
+    Returns:
+        True if cache is disabled via runtime override or DISABLE_LRU_CACHE env var.
+
+    """
+    override = _lru_cache_disabled_override.get()
+    if override is not None:
+        return override
     return dotenv_values(path_dotenv()).get("DISABLE_LRU_CACHE") == "True"
+
+
+class disable_lru_cache:
+    """Context manager to temporarily disable LRU cache.
+
+    Example:
+        >>> @lru_cache()
+        >>> def expensive_function(x: int) -> int:
+        >>>     return x * 2
+        >>>
+        >>> # Cache is enabled here
+        >>> result1 = expensive_function(5)  # Cached
+        >>>
+        >>> with disable_lru_cache():
+        >>>     # Cache is disabled within this block
+        >>>     result2 = expensive_function(5)  # Not cached
+        >>>
+        >>> # Cache is re-enabled here
+        >>> result3 = expensive_function(5)  # Cached again
+
+    Note:
+        This only affects functions decorated AFTER entering the context.
+        Already-decorated functions that were decorated before the context
+        will continue using their existing cache behavior since the decorator
+        logic runs at decoration time, not call time.
+
+    """
+
+    def __init__(self) -> None:
+        """Initialize the context manager."""
+        self._token: Token[bool | None] | None = None
+
+    def __enter__(self) -> "disable_lru_cache":
+        """Enter the context and disable LRU cache."""
+        self._token = _lru_cache_disabled_override.set(True)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any,
+    ) -> None:
+        """Exit the context and restore the previous cache state."""
+        _lru_cache_disabled_override.reset(self._token)
 
 
 def show_all_cache_info(
@@ -186,7 +245,7 @@ def lru_cache(
         is_gen = inspect.isgeneratorfunction(func)
 
         # Use cache when not in unit test mode
-        if not disable_lru_cache():
+        if not is_lru_cache_disabled():
             # ------------------------------
             # REGULAR GENERATORS
             # ------------------------------
