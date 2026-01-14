@@ -101,7 +101,7 @@ def is_lru_cache_disabled() -> bool:
     return dotenv_values(path_dotenv()).get("DISABLE_LRU_CACHE") == "True"
 
 
-class disable_lru_cache:
+class DisableableLRUCache:
     """Context manager to temporarily disable LRU cache.
 
     Example:
@@ -112,8 +112,8 @@ class disable_lru_cache:
         >>> # Cache is enabled here
         >>> result1 = expensive_function(5)  # Cached
         >>>
-        >>> with disable_lru_cache():
-        >>>     # Cache is disabled within this block
+        >>> with DisableableLRUCache():
+        >>> # Cache is disabled within this block
         >>>     result2 = expensive_function(5)  # Not cached
         >>>
         >>> # Cache is re-enabled here
@@ -131,7 +131,7 @@ class disable_lru_cache:
         """Initialize the context manager."""
         self._token: Token[bool | None] | None = None
 
-    def __enter__(self) -> "disable_lru_cache":
+    def __enter__(self) -> "DisableableLRUCache":
         """Enter the context and disable LRU cache."""
         self._token = _lru_cache_disabled_override.set(True)
         return self
@@ -140,10 +140,11 @@ class disable_lru_cache:
         self,
         exc_type: type[BaseException] | None,
         exc_val: BaseException | None,
-        exc_tb: Any,
+        exc_tb: object,
     ) -> None:
         """Exit the context and restore the previous cache state."""
-        _lru_cache_disabled_override.reset(self._token)
+        if self._token is not None:
+            _lru_cache_disabled_override.reset(self._token)
 
 
 def show_all_cache_info(

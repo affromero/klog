@@ -10,7 +10,7 @@ from .logging import (
     wait_seconds_bar,
 )
 from .logging.cache_tools import (
-    disable_lru_cache,
+    DisableableLRUCache,
     get_cache_dir,
     lru_cache,
     sha256sum,
@@ -27,12 +27,12 @@ from .utils import (
 
 __all__ = [
     "DEFAULT_VERBOSITY",
+    "DisableableLRUCache",
     "LogReplacement",
     "LoggingRich",
     "UnitTests",
     "add_log_replacement",
     "clear_log_replacements",
-    "disable_lru_cache",
     "get_cache_dir",
     "get_logger",
     "is_unittest_mode",

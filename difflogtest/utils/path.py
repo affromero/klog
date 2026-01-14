@@ -4,6 +4,7 @@ import glob
 import os
 import shutil
 import tarfile
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import IO, Any, Literal
@@ -1031,3 +1032,67 @@ def logfile_from_func(
     log_file = f"{log_folder}/{relative_dir}/{name_file}/{name_func}.txt"
     path_mkdir(path_dirname(log_file), exist_ok=True, parents=True)
     return log_file
+
+
+# Glob pattern characters
+GLOB_CHARS = {"*", "?", "["}
+
+
+def is_glob_pattern(path: str) -> bool:
+    """Check if a path contains glob pattern characters.
+
+    Arguments:
+        path (str): Path string to check.
+
+    Returns:
+        bool: True if path contains *, ?, or [ characters.
+
+    Example:
+        >>> is_glob_pattern("data/*/images/*.jpg")
+        True
+        >>> is_glob_pattern("data/images/photo.jpg")
+        False
+
+    """
+    return any(char in path for char in GLOB_CHARS)
+
+
+def expand_glob_to_temp_dir(pattern: str, *, prefix: str = "glob_") -> str:
+    """Expand glob pattern and create temp directory with symlinks.
+
+    Creates a temporary directory containing symlinks to all files matching
+    the glob pattern. Files are prefixed with zero-padded indices to preserve
+    sort order when the directory is read.
+
+    Arguments:
+        pattern (str): Glob pattern to expand (e.g., "data/*/images/*.jpg").
+        prefix (str): Prefix for the temporary directory name.
+
+    Returns:
+        str: Path to temporary directory containing symlinks to matched files.
+
+    Raises:
+        FileNotFoundError: If no files match the pattern.
+
+    Example:
+        >>> temp_dir = expand_glob_to_temp_dir("data/*/frames/*.jpg")
+        >>> # temp_dir contains:
+        >>> #   000000_frame1.jpg -> data/a/frames/frame1.jpg
+        >>> #   000001_frame2.jpg -> data/b/frames/frame2.jpg
+
+    """
+    matched_files = path_glob(pattern, sort=True)
+    if not matched_files:
+        msg = f"No files match glob pattern: {pattern}"
+        raise FileNotFoundError(msg)
+
+    # Create temporary directory with symlinks
+    temp_dir = tempfile.mkdtemp(prefix=prefix)
+    for idx, file_path in enumerate(matched_files):
+        # Use zero-padded index prefix to preserve sort order
+        basename = path_basename(file_path)
+        link_name = f"{idx:06d}_{basename}"
+        link_path = path_join(temp_dir, link_name)
+        os.symlink(file_path, link_path)
+
+    return temp_dir
