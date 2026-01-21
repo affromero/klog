@@ -23,7 +23,11 @@ def get_suffix(path: str | Path) -> str:
 
 def path_replace_suffix(path: str | Path, suffix: str) -> str:
     """Replace the suffix of a path."""
-    return str(Path(path).with_suffix(suffix))
+    if suffix.startswith("."):
+        return str(Path(path).with_suffix(suffix))
+    dirname = path_dirname(path)
+    basename = path_basename(path)
+    return path_join(dirname, f"{basename}{suffix}")
 
 
 def path_rstrip(path: str | Path, suffix: str) -> str:
