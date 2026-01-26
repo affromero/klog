@@ -22,13 +22,14 @@ from rich import progress
 from rich.box import ROUNDED, Box
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, track
 from rich.table import Table
 from rich.text import Text
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from typing import TypeVar
+
+    from rich.progress import Progress
 
     _T = TypeVar("_T")
 
@@ -198,6 +199,9 @@ class LoggingRich:
     stdout_duplicator: StdoutDuplicator | None = None
     """ Stdout duplicator for file output when enabled. """
 
+    _logged_once: set[str] = field(default_factory=set)
+    """ Set of messages that have been logged once. """
+
     def __post_init__(self) -> None:
         """Disable the omission of repeated times in console's log render."""
         self.console._log_render.omit_repeated_times = RICH_OMIT_REPEATED_TIMES
@@ -240,18 +244,44 @@ class LoggingRich:
         /,
         *,
         description: str,
+        total: int | None = None,
         transient: bool = False,
         **kwargs: Any,
     ) -> Iterable[_T]:
-        """Track an iterable with a progress bar."""
+        """Track an iterable with a progress bar showing elapsed and remaining time.
+
+        Args:
+            iterable: The iterable to track.
+            description: Description shown next to the progress bar.
+            total: Total number of items. If None, attempts to get len(iterable).
+            transient: If True, the progress bar disappears after completion.
+            **kwargs: Additional keyword arguments passed to Progress.
+
+        Yields:
+            Items from the iterable.
+
+        """
+        if total is None and hasattr(iterable, "__len__"):
+            total = len(iterable)  # type: ignore[arg-type]
+
         console = kwargs.pop("console", self.console)
-        return track(
-            iterable,
-            description=description,
+        with progress.Progress(
+            "[progress.description]{task.description}",
+            progress.BarColumn(),
+            "[progress.percentage]{task.percentage:>3.0f}%",
+            progress.MofNCompleteColumn(),
+            progress.TimeRemainingColumn(),
+            progress.TimeElapsedColumn(),
+            IterationsPerSecondColumn(),
             console=console,
             transient=transient,
+            refresh_per_second=1,
             **kwargs,
-        )
+        ) as prog:
+            task_id = prog.add_task(description, total=total)
+            for item in iterable:
+                yield item
+                prog.update(task_id, advance=1)
 
     def progress(self) -> progress.Progress:
         """Create and return a Rich Progress context manager with a custom progress bar.
@@ -315,10 +345,13 @@ class LoggingRich:
     def success_once(
         self, msg: str, *, force: bool = False, **kwargs: Any
     ) -> None:
-        """Log a warning message once."""
+        """Log a success message once."""
+        if msg in self._logged_once:
+            return
+        self._logged_once.add(msg)
         stack_offset = kwargs.pop("stack_offset", 0)
         stack_offset += self.stack_offset + 1
-        self.warning(msg, force=force, stack_offset=stack_offset, **kwargs)
+        self.success(msg, force=force, stack_offset=stack_offset, **kwargs)
 
     def success(self, msg: str, *, force: bool = False, **kwargs: Any) -> None:
         """Log a success message if the verbosity level for success messages is enabled."""
@@ -360,6 +393,9 @@ class LoggingRich:
         self, msg: str, *, force: bool = False, **kwargs: Any
     ) -> None:
         """Log a warning message once."""
+        if msg in self._logged_once:
+            return
+        self._logged_once.add(msg)
         stack_offset = kwargs.pop("stack_offset", 0)
         stack_offset += self.stack_offset + 1
         self.warning(msg, force=force, stack_offset=stack_offset, **kwargs)
@@ -406,6 +442,9 @@ class LoggingRich:
         self, msg: str, *, force: bool = False, **kwargs: Any
     ) -> None:
         """Log an informational message once."""
+        if msg in self._logged_once:
+            return
+        self._logged_once.add(msg)
         stack_offset = kwargs.pop("stack_offset", 0)
         stack_offset += self.stack_offset + 1
         self.info(msg, force=force, stack_offset=stack_offset, **kwargs)
@@ -536,6 +575,10 @@ class LoggingRich:
 
     def print_once(self, msg: Any, **kwargs: Any) -> None:
         """Print a preprocessed message to the console once."""
+        key = str(msg)
+        if key in self._logged_once:
+            return
+        self._logged_once.add(key)
         self.print(msg, **kwargs)
 
     def print(self, msg: Any, *, force: bool = False, **kwargs: Any) -> None:
