@@ -146,7 +146,7 @@ def path_symlink(
     """
     if ignore_existing and path_exists(dst):
         return
-    Path(dst).symlink_to(Path(src).resolve())
+    Path(dst).symlink_to(src)
 
 
 def path_relative_to(path: str | Path, base: str | Path) -> str:
