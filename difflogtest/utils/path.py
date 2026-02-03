@@ -128,6 +128,7 @@ def path_symlink(
     """Create a symbolic link. If the destination already exists, it will be ignored.
 
     This function creates a symbolic link at the specified destination.
+    The source path is converted to an absolute path to avoid broken symlinks.
 
     Arguments:
         src (str | Path): The source path to create the symbolic link from.
@@ -144,9 +145,22 @@ def path_symlink(
         This function is useful in creating a symbolic link.
 
     """
-    if ignore_existing and path_exists(dst):
-        return
-    Path(dst).symlink_to(src)
+    dst_path = Path(dst)
+
+    # Check if destination exists (including broken symlinks)
+    if dst_path.is_symlink() or dst_path.exists():
+        if ignore_existing:
+            return
+        # Remove broken symlink to allow recreation
+        if dst_path.is_symlink() and not dst_path.exists():
+            dst_path.unlink()
+        else:
+            msg = f"Destination already exists: {dst}"
+            raise FileExistsError(msg)
+
+    # Use absolute path for source to avoid broken symlinks
+    src_abs = os.path.realpath(src)
+    dst_path.symlink_to(src_abs)
 
 
 def path_relative_to(path: str | Path, base: str | Path) -> str:
