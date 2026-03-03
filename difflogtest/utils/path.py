@@ -2,6 +2,7 @@
 
 import glob
 import os
+import re
 import shutil
 import tarfile
 import tempfile
@@ -15,6 +16,27 @@ from git import Repo
 from natsort import natsorted, ns
 from rich import print as pprint
 
+_URI_SCHEME_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+\-.]*://")
+
+
+def _has_uri_scheme(path: str) -> bool:
+    """Check if path has a URI scheme (s3://, gs://, http://)."""
+    return bool(_URI_SCHEME_RE.match(path))
+
+
+def _uri_dirname(path: str) -> str:
+    """Get parent directory of a URI path via string splitting."""
+    path = path.rstrip("/")
+    scheme_end = path.find("://")
+    if scheme_end != -1:
+        authority_start = scheme_end + 3
+        last_slash = path.rfind("/")
+        if last_slash <= authority_start:
+            return path  # at or before bucket level
+        return path[:last_slash]
+    last_slash = path.rfind("/")
+    return path[:last_slash] if last_slash != -1 else path
+
 
 def get_suffix(path: str | Path) -> str:
     """Get the suffix of a path."""
@@ -23,7 +45,12 @@ def get_suffix(path: str | Path) -> str:
 
 def path_replace_suffix(path: str | Path, suffix: str) -> str:
     """Replace the suffix of a path."""
+    str_path = str(path)
     if suffix.startswith("."):
+        if _has_uri_scheme(str_path):
+            dirname = _uri_dirname(str_path)
+            stem = Path(str_path).stem
+            return f"{dirname}/{stem}{suffix}"
         return str(Path(path).with_suffix(suffix))
     dirname = path_dirname(path)
     basename = path_basename(path)
@@ -101,6 +128,8 @@ def path_dirname(path: str | Path) -> str:
     """Get the directory name of a path.
 
     This function returns the directory name of the specified path.
+    For URI paths (s3://, gs://, etc.), uses string splitting to
+    preserve the scheme's double slash.
 
     Arguments:
         path (str | Path): The path to get the directory name from.
@@ -109,13 +138,15 @@ def path_dirname(path: str | Path) -> str:
         str: The directory name of the specified path.
 
     Example:
-        >>> dirname("path/to/file")
+        >>> path_dirname("path/to/file")
         'path/to'
-
-    Note:
-        This function is useful in getting the directory name of a path.
+        >>> path_dirname("s3://bucket/key/file.txt")
+        's3://bucket/key'
 
     """
+    str_path = str(path)
+    if _has_uri_scheme(str_path):
+        return _uri_dirname(str_path)
     return str(Path(path).parent)
 
 
