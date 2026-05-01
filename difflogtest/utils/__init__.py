@@ -10,6 +10,8 @@ from .mode import (
 from .path import (
     is_file_changed,
     logfile_from_func,
+    path_islink,
+    path_lexists,
     path_mkdir,
     path_open,
     path_relative_to,
@@ -36,6 +38,8 @@ __all__ = [
     "is_file_changed",
     "is_unittest_mode",
     "logfile_from_func",
+    "path_islink",
+    "path_lexists",
     "path_mkdir",
     "path_open",
     "path_relative_to",

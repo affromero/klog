@@ -194,6 +194,16 @@ def path_symlink(
     dst_path.symlink_to(src_abs)
 
 
+def path_islink(path: str | Path) -> bool:
+    """Return True iff path is a symbolic link."""
+    return Path(path).is_symlink()
+
+
+def path_lexists(path: str | Path) -> bool:
+    """Return True for existing paths, including broken symbolic links."""
+    return os.path.lexists(path)
+
+
 def path_relative_to(path: str | Path, base: str | Path) -> str:
     """Get the relative path of a path.
 
