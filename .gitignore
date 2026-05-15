@@ -25,3 +25,6 @@ dist/
 .venv/
 *.tar.gz
 *.tar
+
+# Lock file — managed by uv, regenerated per-environment
+uv.lock

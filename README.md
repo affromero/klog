@@ -5,11 +5,15 @@
 **Batteries-included structured logger for Python data/ML projects — built on [Rich](https://github.com/Textualize/rich).**
 
 [![PyPI](https://img.shields.io/pypi/v/klog)](https://pypi.org/project/klog/)
+[![Downloads](https://img.shields.io/pypi/dm/klog)](https://pypi.org/project/klog/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue?logo=python&logoColor=white)](https://pypi.org/project/klog/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE.md)
+[![Publish](https://img.shields.io/github/actions/workflow/status/affromero/klog/publish.yml?label=publish)](https://github.com/affromero/klog/actions/workflows/publish.yml)
+[![License: MIT](https://img.shields.io/github/license/affromero/klog)](https://github.com/affromero/klog/blob/main/LICENSE.md)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/badge/code%20style-ruff-261230?logo=ruff)](https://github.com/astral-sh/ruff)
 [![mypy](https://img.shields.io/badge/typing-mypy%20strict-blue)](http://mypy-lang.org/)
+[![jaxtyping](https://img.shields.io/badge/shapes-jaxtyping-orange)](https://github.com/patrick-kidger/jaxtyping)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/affromero/klog/pulls)
 
 </div>
 
