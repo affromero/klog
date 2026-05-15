@@ -12,10 +12,8 @@ repos:
       rev: v5.0.0
       hooks:
           - id: trailing-whitespace
-            exclude: unittest_logs/
 
           - id: end-of-file-fixer
-            exclude: unittest_logs/|assets/
 
           - id: mixed-line-ending
             args: [--fix, lf]

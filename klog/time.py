@@ -1,4 +1,4 @@
-"""String replacement and utility functions."""
+"""Time-formatting helpers."""
 
 
 def get_elapsed_time(elapsed_time: float) -> str:

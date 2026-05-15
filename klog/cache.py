@@ -1,4 +1,4 @@
-"""Cache tools."""
+"""LRU cache with a disable hook, plus on-disk cache helpers."""
 
 import functools
 import inspect
@@ -13,10 +13,8 @@ from dotenv import dotenv_values
 from jaxtyping import jaxtyped
 from sha256sum import sha256sum as _sha256sum
 
-from difflogtest.utils.mode import is_unittest_mode
-from difflogtest.utils.path import path_dotenv, path_expanduser, path_join
-
-from .utils import get_logger
+from .logger import get_logger
+from .path import path_dotenv, path_expanduser, path_join
 
 _T = TypeVar("_T")
 
@@ -328,7 +326,7 @@ def lru_cache(
                 gen_cached_wrapper.cache_info = cache_info  # type: ignore[attr-defined]
                 gen_cached_wrapper._original_qualname = func.__qualname__  # type: ignore[attr-defined]
                 _cached_functions.append(
-                    cast(_CachedFunction, gen_cached_wrapper)
+                    cast("_CachedFunction", gen_cached_wrapper)
                 )
 
                 return gen_cached_wrapper
@@ -414,7 +412,7 @@ def lru_cache(
                 async_gen_cached_wrapper.cache_info = cache_info  # type: ignore[attr-defined]
                 async_gen_cached_wrapper._original_qualname = func.__qualname__  # type: ignore[attr-defined]
                 _cached_functions.append(
-                    cast(_CachedFunction, async_gen_cached_wrapper)
+                    cast("_CachedFunction", async_gen_cached_wrapper)
                 )
 
                 return async_gen_cached_wrapper
@@ -428,7 +426,7 @@ def lru_cache(
                     maxsize=maxsize, typed=False
                 )(func)
                 cached_func._original_qualname = func.__qualname__  # type: ignore[attr-defined]
-                _cached_functions.append(cast(_CachedFunction, cached_func))
+                _cached_functions.append(cast("_CachedFunction", cached_func))
 
                 # Create a wrapper that calls show_all_cache_info() on execution
                 @functools.wraps(cached_func)
@@ -520,7 +518,7 @@ def lru_cache(
             async_cached_wrapper.cache_info = cache_info  # type: ignore[attr-defined]
             async_cached_wrapper._original_qualname = func.__qualname__  # type: ignore[attr-defined]
             _cached_functions.append(
-                cast(_CachedFunction, async_cached_wrapper)
+                cast("_CachedFunction", async_cached_wrapper)
             )
 
             return async_cached_wrapper  # type: ignore[return-value]
@@ -538,10 +536,9 @@ def lru_cache(
             @functools.wraps(func)
             async def async_gen_wrapper(*args: Any, **kwargs: Any) -> Any:
                 """Async generator wrapper that passes through when cache is disabled."""
-                if not is_unittest_mode():
-                    logger.warning(
-                        f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
-                    )
+                logger.warning(
+                    f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
+                )
                 async for value in func(*args, **kwargs):  # type: ignore[attr-defined]
                     yield value
 
@@ -555,10 +552,9 @@ def lru_cache(
             @functools.wraps(func)
             def gen_wrapper(*args: Any, **kwargs: Any) -> Any:
                 """Pass through generator when cache is disabled."""
-                if not is_unittest_mode():
-                    logger.warning(
-                        f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
-                    )
+                logger.warning(
+                    f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
+                )
                 yield from func(*args, **kwargs)  # type: ignore[misc]
 
             return gen_wrapper
@@ -571,10 +567,9 @@ def lru_cache(
             @functools.wraps(func)
             async def async_wrapper(*args: Any, **kwargs: Any) -> Any:
                 """Async wrapper that passes through when cache is disabled."""
-                if not is_unittest_mode():
-                    logger.warning(
-                        f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
-                    )
+                logger.warning(
+                    f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
+                )
                 return await func(*args, **kwargs)  # type: ignore[misc]
 
             return async_wrapper  # type: ignore[return-value]
@@ -615,10 +610,9 @@ def lru_cache(
                     until the wrapper function is called.
 
             """
-            if not is_unittest_mode():
-                logger.warning(
-                    f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
-                )
+            logger.warning(
+                f"{_get_cached_function_info(func)} has @lru_cache but it is disabled!"
+            )
             return func(*args, **kwargs)
 
         return wrapper

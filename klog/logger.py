@@ -1,4 +1,4 @@
-"""Logging functionality for difflogtest."""
+"""Rich-based logger: :class:`LoggingRich`, :class:`LoggingTable`, :func:`get_logger`."""
 
 from __future__ import annotations
 
@@ -10,11 +10,11 @@ import sys
 import tempfile
 from dataclasses import field
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TextIO
 
 import dotenv
-import json5
 from dotenv import load_dotenv
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
@@ -496,7 +496,7 @@ class LoggingRich:
 
         """
         # Parse and reformat with consistent indentation
-        jsonize = json.dumps(json5.loads(msg), indent=4)
+        jsonize = json.dumps(json.loads(msg), indent=4)
         # Color the keys blue and values gold3 in the JSON string
         jsonize = re.sub(r'(".*?"): ', r"[blue]\1[/blue]: ", jsonize)
         jsonize = re.sub(r': (".*?")', r": [gold3]\1[/gold3]", jsonize)
@@ -792,3 +792,11 @@ class LoggingRich:
         else:
             color_msg = [level, msg, filename]
         return " ".join(color_msg)
+
+
+@lru_cache(maxsize=128)
+def get_logger(
+    verbosity: dict[str, bool] = DEFAULT_VERBOSITY,
+) -> LoggingRich:
+    """Return a cached :class:`LoggingRich` for the given verbosity."""
+    return LoggingRich(verbosity=verbosity)
