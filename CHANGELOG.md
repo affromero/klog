@@ -5,6 +5,24 @@ All notable changes to klog are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-05-15
+
+CI/workflow fixes after 0.1.1 also failed PyPI upload with the same
+`400 Bad Request`. Local wheels build cleanly with the SPDX license
+metadata — the failure is somewhere in the upload step. This release
+adds `twine check` and `twine upload --verbose` to surface the actual
+error.
+
+### Fixed
+
+- `.github/workflows/publish.yml`: bump `actions/checkout` to v4,
+  `actions/setup-python` to v5, pin Python to 3.12 (3.x picked 3.14
+  which prints deprecation noise).
+- Add `twine check` and METADATA dump steps so we can see what's in
+  the wheel before upload.
+- `twine upload --verbose --non-interactive` for actionable errors
+  when the upload step itself fails.
+
 ## [0.1.1] — 2026-05-15
 
 First successful PyPI upload. Fixes the 0.1.0 build that PyPI rejected
