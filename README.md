@@ -17,19 +17,25 @@
 
 </div>
 
-```
-                ┌──────────────┐
-   .info()    ──▶│              │──▶ Rich-formatted console output
-   .success() ──▶│   klog       │     with auto file:line prefix
-   .warning() ──▶│              │
-   .error()   ──▶│   logger     │──▶ logger.track() — progress bars
-   .track()   ──▶│   + helpers  │     that survive parallel work
-   .print()   ──▶│              │
-                 │ (cached      │──▶ @lru_cache — with a disable hook
-                 │  per-module) │     for tests / debugging
-                 │              │──▶ path_join / path_exists / ...
-                 │              │     local + s3:// transparently
-                 └──────────────┘
+```text
+  get_logger()
+       |
+       v
+  +---------------------------+
+  |        LoggingRich        |
+  +---------------------------+
+  | .info  .success  .warning |  -->  Rich-formatted console
+  | .error .debug    .rule    |       with auto file:line prefix
+  | .track .print    .info_json|
+  +---------------------------+
+
+  plus, from the same package:
+
+    @lru_cache  +  DisableableLRUCache  -->  cached calls,
+                                             with a disable hook for tests
+    path_join / path_exists / path_open      -->  local + s3:// transparent
+    get_elapsed_time(seconds)                -->  "01d : 01h : 12m : 03s"
+    sha256sum(path) / get_cache_dir()        -->  stable on-disk caching
 ```
 
 `klog` is what you reach for when stdlib `logging.basicConfig` doesn't cut it and `print()` feels gross. It wraps Python's `logging` module with `rich.logging.RichHandler` pre-configured, adds stacklevel awareness so every line shows where it came from, and ships a handful of helpers (caching, paths, timing) that show up in every ML/data project.

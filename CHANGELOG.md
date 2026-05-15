@@ -5,6 +5,25 @@ All notable changes to klog are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-05-15
+
+First successful PyPI upload. Fixes the 0.1.0 build that PyPI rejected
+with `400 Bad Request`.
+
+### Fixed
+
+- `pyproject.toml` `license` field uses the SPDX expression
+  (`license = "MIT"` + `license-files = ["LICENSE.md"]`) instead of the
+  legacy `{text = "MIT"}` form that newer PyPI rejects.
+- Drop redundant `License :: OSI Approved :: MIT License` classifier
+  (the SPDX expression replaces it; PyPI rejects both together).
+- Project URLs in `pyproject.toml` corrected from `github.com/afromero/...`
+  to `github.com/affromero/...` (the actual GitHub handle).
+- README ASCII diagram rewritten with ASCII-safe box characters
+  (`+--+`, `-->`) instead of Unicode box-drawing + `▶`. The previous
+  version rendered crooked in Markdown viewers that gave `▶` a wider
+  glyph than expected.
+
 ## [0.1.0] — 2026-05-15
 
 First release under the new name `klog`. Previously published as `difflogtest`.
